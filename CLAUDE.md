@@ -44,23 +44,16 @@ Không tự ý thay đổi các quyết định dưới đây. Nếu thấy có 
 
 ## Project
 
-- Thư mục `markshot/` là thư mục đồng bộ của Xcode: chỉ cần tạo file Swift trong đó, không phải khai báo vào `.pbxproj`. Chỉ sửa `.pbxproj` khi cần đổi build setting.
+- Thư mục `markshot/` là thư mục đồng bộ của Xcode: chỉ cần tạo file Swift trong đó, không phải khai báo vào file project. Chỉ sửa `markshot.xcodeproj/project.xcproj` khi cần đổi build setting.
 - Build từ terminal để tự kiểm tra lỗi:
 
   ```bash
-  xcodebuild -scheme markshot -configuration Debug build
+  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -scheme markshot -configuration Debug build
   ```
-
-- Dọn đồ thừa từ template: `ContentView`, cửa sổ `WindowGroup`, và các key iOS còn sót (*Supported interface orientations* iPad/iPhone).
 
 ## Cách làm việc
 
-- Làm theo 4 giai đoạn. Xong giai đoạn nào thì app phải build được và chạy được tới đó:
-  1. **M1:** icon menu bar + hotkey + chụp vùng chọn + Copy
-  2. **M2:** đủ các công cụ vẽ + Undo/Redo
-  3. **M3:** Save + Preferences + tự chạy khi đăng nhập
-  4. **M4:** chụp toàn màn hình, chụp nhiều màn hình, hoàn thiện
-- Cuối mỗi giai đoạn:
+- Sau mỗi thay đổi:
   1. Build không lỗi, không warning mới.
   2. Liệt kê các bước để tôi test tay (UI không test tự động được).
   3. Commit Git sau khi tôi xác nhận chạy đúng.

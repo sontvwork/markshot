@@ -56,9 +56,9 @@ Mỗi mục chụp hiển thị hotkey hiện tại bên cạnh.
 
 - Chụp tất cả màn hình và **ghép thành 1 ảnh**, xếp đúng vị trí tương đối như trong System Settings → Displays.
 - Phần trống giữa các màn hình (do kích thước hoặc vị trí lệch nhau): trong suốt với PNG, màu trắng với JPG.
-- Các màn hình có độ phân giải/tỉ lệ khác nhau được đưa về cùng một tỉ lệ trong ảnh ghép.
-- Mở ảnh ghép trong **một cửa sổ editor riêng** (cửa sổ thường, không phải overlay), tự thu phóng để vừa màn hình. Vùng chọn mặc định là toàn bộ ảnh ghép.
-- Editor có đủ công cụ và hành động như mục 4 và 5.
+- Các màn hình có độ phân giải/tỉ lệ khác nhau được đưa về cùng một tỉ lệ trong ảnh ghép: tỉ lệ lớn nhất trong các màn hình.
+- Mở ảnh ghép trong **một cửa sổ editor riêng** (cửa sổ có thanh tiêu đề, không phải overlay) ở màn hình đang có con trỏ, tự thu phóng để vừa màn hình. Cửa sổ luôn nổi trên các app khác. Vùng chọn mặc định là toàn bộ ảnh ghép.
+- Editor có đủ công cụ và hành động như mục 4 và 5. Độ dày nét và cỡ chữ tính theo kích thước trên màn hình, nên khi ảnh đang thu nhỏ thì nét trong ảnh xuất ra to hơn tương ứng.
 
 ### 3.4 Downscale Retina
 
@@ -105,7 +105,7 @@ Mặc định chưa chọn công cụ nào (chế độ chỉnh vùng chọn). B
 1. Chọn công cụ Text, click vào vị trí bất kỳ → hiện ô nhập, gõ chữ.
 2. Click ra ngoài hoặc bấm `Esc` → chốt text. Text rỗng thì bỏ.
 3. Sau khi chốt, text vẫn chỉnh được:
-   - **Chọn:** click vào text (không cần đang chọn công cụ Text).
+   - **Chọn:** click vào text, khi chưa chọn công cụ nào hoặc đang ở công cụ Text. Với các công cụ vẽ khác, click là để vẽ.
    - **Di chuyển:** kéo text.
    - **Resize:** kéo tay nắm ở góc, cỡ chữ thay đổi theo.
    - **Sửa nội dung:** double-click.
@@ -125,10 +125,13 @@ Các object khác (nét vẽ, hình, số) không bắt buộc chỉnh sửa sau
 | Phím | Hành động |
 |---|---|
 | `Esc` | Hủy, đóng editor không lưu (khi đang gõ text: chốt text) |
+| `⌘W` | Đóng editor không lưu |
 | `⌘C` | Copy rồi đóng editor |
 | `⌘S` | Save |
 | `⌘Z` / `⌘⇧Z` | Undo / Redo |
 | `Delete` | Xóa text đang chọn |
+
+Khi đang gõ text, `⌘C` / `⌘X` / `⌘V` / `⌘A` / `⌘Z` tác động lên ô nhập.
 
 ## 5. Xuất ảnh
 
@@ -141,7 +144,7 @@ Các object khác (nét vẽ, hình, số) không bắt buộc chỉnh sửa sau
 
 ### 5.2 Save
 
-1. Hiện hộp thoại lưu file của hệ thống **mỗi lần** bấm Save.
+1. Hiện hộp thoại lưu file của hệ thống **mỗi lần** bấm Save, gắn vào editor. Trong lúc hộp thoại mở, Copy và Đóng tạm khoá.
 2. Thư mục mở sẵn: thư mục lưu mặc định trong Preferences.
 3. Tên file mặc định: `markshot_yyyy-MM-dd_HH-mm-ss.<đuôi>`.
 4. Format theo Preferences (PNG hoặc JPG, JPG dùng chất lượng đã cài).
@@ -160,14 +163,15 @@ Các object khác (nét vẽ, hình, số) không bắt buộc chỉnh sửa sau
 | Lưu file | Thư mục lưu mặc định | `~/Pictures` |
 | Hệ thống | Tự chạy khi đăng nhập | Bật |
 
-- Thay đổi có hiệu lực ngay, không cần khởi động lại app.
+- Thay đổi có hiệu lực ngay, không cần khởi động lại app. Riêng Downscale Retina áp dụng từ lần chụp kế tiếp.
 - Ô đổi hotkey cho phép ghi phím mới và xóa hotkey.
+- Cửa sổ Preferences mở ở màn hình đang có con trỏ và luôn nổi trên các app khác.
 
 ## 7. Yêu cầu phi chức năng
 
 1. **Tài nguyên khi chạy nền:** RAM thấp nhất có thể, CPU ~0% khi chờ hotkey.
-2. **Tốc độ:** từ lúc bấm hotkey đến lúc overlay hiện, mục tiêu dưới 200 ms.
+2. **Tốc độ:** từ lúc bấm hotkey đến lúc overlay hiện, mục tiêu dưới 200 ms. Lần chụp đầu tiên sau khi mở app có thể chậm hơn.
 3. **Sau mỗi phiên chụp:** RAM quay về gần mức nền.
-4. **Hiển thị:** overlay phủ lên cả menu bar, Dock và app đang full màn hình.
+4. **Hiển thị:** overlay phủ lên cả menu bar, Dock và app đang full màn hình. Preferences, cửa sổ ảnh ghép và các hộp thoại (Save, bảng màu) hiện ngay tại màn hình và desktop đang dùng, kể cả khi đang ở app full màn hình.
 5. **Nhiều màn hình:** hoạt động đúng với các màn hình có tỉ lệ khác nhau (vd MacBook Retina + màn hình ngoài 1x); vùng chọn và ảnh xuất ra không bị lệch pixel.
 6. **macOS hỗ trợ:** 26 và 27.
