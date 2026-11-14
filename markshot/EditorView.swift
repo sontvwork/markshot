@@ -60,6 +60,8 @@ final class EditorView: NSView {
     private var redoStack: [[Annotation]] = []
     private(set) var nextID = 1
     private var inProgress: Annotation?
+    /// Bóng mờ của nét Marker / số bước đi theo chuột, để căn trước khi click.
+    private var preview: Annotation?
     private var pixelCache: [Int: (rect: CGRect, image: CGImage)] = [:]
 
     private(set) var tool: Tool?
@@ -158,7 +160,7 @@ final class EditorView: NSView {
         actionBar.addButton(symbol: "xmark", tooltip: "Đóng (Esc)") { [weak self] in self?.onClose() }
         addSubview(actionBar)
 
-        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .activeAlways, .inVisibleRect], owner: self))
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
         updateGeometry()
     }
 
@@ -337,6 +339,12 @@ final class EditorView: NSView {
             annotation.draw(in: ctx) { pixelImage(for: $0) }
         }
         inProgress?.draw(in: ctx) { pixelImage(for: $0) }
+        if let preview {
+            ctx.setAlpha(0.45)
+            ctx.beginTransparencyLayer(auxiliaryInfo: nil)
+            preview.draw(in: ctx) { _ in nil }
+            ctx.endTransparencyLayer()
+        }
         ctx.restoreGState()
         drawTextChrome(in: ctx)
     }
@@ -399,6 +407,7 @@ final class EditorView: NSView {
     private func toggleTool(_ newTool: Tool) {
         commitText()
         tool = tool == newTool ? nil : newTool
+        setPreview(nil)
         for (key, button) in toolButtons {
             button.isSelected = key == tool
         }
@@ -509,6 +518,8 @@ final class EditorView: NSView {
     override func mouseDown(with event: NSEvent) {
         let v = viewPoint(event)
         let p = canvasPoint(v)
+        // Ẩn bóng mờ khi click; nó hiện lại khi chuột di chuyển.
+        setPreview(nil)
 
         // Đang gõ text mà click ra ngoài: chỉ chốt text.
         if editingText != nil {
@@ -539,24 +550,40 @@ final class EditorView: NSView {
         NSCursor.crosshair.set()
     }
 
-    private func beginDrawing(_ tool: Tool, at p: CGPoint) {
-        // Độ dày, cỡ chữ, cỡ hình tròn chọn theo point trên màn hình. Khi ảnh đang thu nhỏ (cửa sổ ảnh ghép),
-        // quy đổi ra point của canvas để nét vẽ trông giống nhau ở mọi mức thu phóng.
-        let unit = 1 / zoom
-        func make(_ shape: Annotation.Shape) -> Annotation {
-            Annotation(id: nextID, shape: shape, color: color, lineWidth: strokeSize.lineWidth * unit)
+    /// Độ dày, cỡ chữ, cỡ hình tròn chọn theo point trên màn hình. Khi ảnh đang thu nhỏ (cửa sổ ảnh ghép),
+    /// quy đổi ra point của canvas để nét vẽ trông giống nhau ở mọi mức thu phóng.
+    private var unit: CGFloat { 1 / zoom }
+
+    private func make(_ shape: Annotation.Shape) -> Annotation {
+        Annotation(id: nextID, shape: shape, color: color, lineWidth: strokeSize.lineWidth * unit)
+    }
+
+    private func counter(at p: CGPoint) -> Annotation {
+        let numbers = annotations.compactMap { annotation -> Int? in
+            if case .counter(_, let number, _) = annotation.shape { return number }
+            return nil
         }
+        let radius = Annotation.counterRadius(for: strokeSize) * unit
+        return make(.counter(center: p, number: (numbers.max() ?? 0) + 1, radius: radius))
+    }
+
+    private func setPreview(_ new: Annotation?) {
+        guard preview != nil || new != nil else { return }
+        if let old = preview { redraw(old.bounds) }
+        preview = new
+        if let new {
+            ensureCanvas()
+            redraw(new.bounds)
+        }
+    }
+
+    private func beginDrawing(_ tool: Tool, at p: CGPoint) {
         switch tool {
         case .text:
             beginEditingText(id: nil, at: p, string: "", fontSize: (Annotation.defaultFontSize * unit).rounded(), color: color)
             return
         case .counter:
-            let numbers = annotations.compactMap { annotation -> Int? in
-                if case .counter(_, let number, _) = annotation.shape { return number }
-                return nil
-            }
-            let radius = Annotation.counterRadius(for: strokeSize) * unit
-            commit(make(.counter(center: p, number: (numbers.max() ?? 0) + 1, radius: radius)))
+            commit(counter(at: p))
             return
         case .pen: inProgress = make(.stroke(points: [p], marker: false))
         case .marker: inProgress = make(.stroke(points: [p], marker: true))
@@ -660,9 +687,15 @@ final class EditorView: NSView {
         updateCursor(at: viewPoint(event))
     }
 
+    override func mouseExited(with event: NSEvent) {
+        setPreview(nil)
+    }
+
     private func updateCursor(at v: CGPoint) {
         guard drag == nil else { return }
         let p = canvasPoint(v)
+        var showPreview: Annotation?
+        defer { setPreview(showPreview) }
         let cursor: NSCursor
         if [toolBar, actionBar].contains(where: { !$0.isHidden && $0.frame.contains(v) }) {
             cursor = .arrow
@@ -674,6 +707,11 @@ final class EditorView: NSView {
             } else if tool == nil || tool == .text, let textCursor = textCursor(at: p) {
                 cursor = textCursor
             } else if viewRect(selection).contains(v) {
+                switch tool {
+                case .marker: showPreview = make(.stroke(points: [p], marker: true))
+                case .counter: showPreview = counter(at: p)
+                default: break
+                }
                 switch tool {
                 case nil: cursor = .openHand
                 case .text: cursor = .iBeam
