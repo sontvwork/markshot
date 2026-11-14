@@ -4,7 +4,7 @@ import os
 enum CaptureMode {
     /// Chọn vùng trên overlay phủ tất cả màn hình.
     case region
-    /// Màn hình đang có con trỏ, chọn sẵn cả màn hình.
+    /// Màn hình đang có con trỏ, mở trong cửa sổ riêng.
     case screen
     /// Ghép tất cả màn hình thành một ảnh, mở trong cửa sổ riêng.
     case allScreens
@@ -39,10 +39,8 @@ final class CaptureCoordinator {
                 let onEnd = { self.session = nil }
                 switch mode {
                 case .region:
-                    session = CaptureSession(overlay: shots, selectAll: false, onEnd: onEnd)
-                case .screen:
-                    session = CaptureSession(overlay: shots, selectAll: true, onEnd: onEnd)
-                case .allScreens:
+                    session = CaptureSession(overlay: shots, onEnd: onEnd)
+                case .screen, .allScreens:
                     guard let stitched = ScreenCapturer.stitch(shots) else {
                         NSSound.beep()
                         return

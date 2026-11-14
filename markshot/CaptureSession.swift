@@ -29,7 +29,7 @@ final class OverlayPanel: NSPanel {
     override var canBecomeKey: Bool { true }
 }
 
-/// Cửa sổ thường chứa editor của ảnh ghép nhiều màn hình, thu phóng cho vừa màn hình đang dùng.
+/// Cửa sổ thường chứa editor của ảnh toàn màn hình / ghép nhiều màn hình, thu phóng cho vừa màn hình đang dùng.
 final class EditorWindow: NSWindow {
     /// Lề quanh ảnh, đủ chỗ cho hai thanh công cụ nằm ngoài ảnh khi vùng chọn là cả ảnh.
     static let inset: CGFloat = 56
@@ -85,13 +85,11 @@ final class CaptureSession: NSObject, NSWindowDelegate {
     }
 
     /// Overlay: mỗi màn hình đã chụp một panel phủ kín, hiển thị đúng ảnh vừa chụp.
-    /// `selectAll`: chọn sẵn toàn bộ màn hình (chế độ chụp toàn màn hình).
-    convenience init(overlay shots: [ScreenShot], selectAll: Bool, onEnd: @escaping () -> Void) {
+    convenience init(overlay shots: [ScreenShot], onEnd: @escaping () -> Void) {
         self.init(onEnd: onEnd)
         for shot in shots {
             let editor = EditorView(image: shot.image, pixelScale: shot.scale, canvasSize: shot.screen.frame.size)
             attach(editor, to: OverlayPanel(screen: shot.screen))
-            if selectAll { editor.selectAll() }
         }
 
         // Ảnh đã chụp xong nên kích hoạt app lúc này không làm đổi nội dung "đóng băng".
@@ -105,9 +103,7 @@ final class CaptureSession: NSObject, NSWindowDelegate {
         for window in windows {
             window.makeFirstResponder(window.contentView)
         }
-        if !selectAll {
-            NSCursor.crosshair.set()
-        }
+        NSCursor.crosshair.set()
 
         // Cắm/rút màn hình giữa chừng thì overlay không còn khớp: huỷ phiên.
         NotificationCenter.default.addObserver(
@@ -118,7 +114,7 @@ final class CaptureSession: NSObject, NSWindowDelegate {
         )
     }
 
-    /// Cửa sổ editor riêng cho ảnh ghép nhiều màn hình, chọn sẵn toàn bộ ảnh.
+    /// Cửa sổ editor riêng cho ảnh toàn màn hình / ghép nhiều màn hình, chọn sẵn toàn bộ ảnh.
     convenience init(stitched shot: StitchedShot, onEnd: @escaping () -> Void) {
         self.init(onEnd: onEnd)
         let editor = EditorView(

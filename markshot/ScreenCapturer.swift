@@ -90,7 +90,11 @@ enum ScreenCapturer {
     /// Ghép các màn hình thành một ảnh, xếp đúng vị trí tương đối như trong System Settings → Displays.
     /// Mọi màn hình được đưa về cùng tỉ lệ (tỉ lệ lớn nhất); chỗ trống giữa các màn hình để trong suốt.
     static func stitch(_ shots: [ScreenShot]) -> StitchedShot? {
-        stitch(shots.map { ($0.image, $0.screen.frame) })
+        // Một màn hình: dùng luôn ảnh gốc, khỏi vẽ lại.
+        if shots.count == 1, let shot = shots.first {
+            return StitchedShot(image: shot.image, canvasSize: shot.screen.frame.size, scale: shot.scale)
+        }
+        return stitch(shots.map { ($0.image, $0.screen.frame) })
     }
 
     /// `frame` của từng ảnh theo toạ độ màn hình của AppKit (point, trục y hướng lên).

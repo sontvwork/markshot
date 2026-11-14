@@ -50,7 +50,7 @@ Mỗi mục chụp hiển thị hotkey hiện tại bên cạnh.
 ### 3.2 Chụp toàn màn hình — mặc định `⌥⇧3`
 
 - Chụp màn hình đang có con trỏ chuột.
-- Mở editor giống chụp vùng chọn, vùng chọn mặc định là **toàn bộ màn hình** đó (vẫn resize/di chuyển được).
+- Mở ảnh trong **cửa sổ editor riêng** giống chụp nhiều màn hình (mục 3.3), để người dùng không nhầm ảnh chụp với màn hình thật. Vùng chọn mặc định là toàn bộ ảnh (vẫn resize/di chuyển được).
 
 ### 3.3 Chụp nhiều màn hình — mặc định `⌥⇧5`
 
@@ -172,6 +172,6 @@ Khi đang gõ text, `⌘C` / `⌘X` / `⌘V` / `⌘A` / `⌘Z` tác động lên
 1. **Tài nguyên khi chạy nền:** RAM thấp nhất có thể, CPU ~0% khi chờ hotkey.
 2. **Tốc độ:** từ lúc bấm hotkey đến lúc overlay hiện, mục tiêu dưới 200 ms. Lần chụp đầu tiên sau khi mở app có thể chậm hơn.
 3. **Sau mỗi phiên chụp:** RAM quay về gần mức nền.
-4. **Hiển thị:** overlay phủ lên cả menu bar, Dock và app đang full màn hình. Preferences, cửa sổ ảnh ghép và các hộp thoại (Save, bảng màu) hiện ngay tại màn hình và desktop đang dùng, kể cả khi đang ở app full màn hình.
+4. **Hiển thị:** overlay phủ lên cả menu bar, Dock và app đang full màn hình. Preferences, cửa sổ editor riêng (toàn màn hình, nhiều màn hình) và các hộp thoại (Save, bảng màu) hiện ngay tại màn hình và desktop đang dùng, kể cả khi đang ở app full màn hình.
 5. **Nhiều màn hình:** hoạt động đúng với các màn hình có tỉ lệ khác nhau (vd MacBook Retina + màn hình ngoài 1x); vùng chọn và ảnh xuất ra không bị lệch pixel.
 6. **macOS hỗ trợ:** 26 và 27.
