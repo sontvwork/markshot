@@ -7,8 +7,10 @@ struct MarkshotApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        MenuBarExtra("markshot", systemImage: "camera.viewfinder") {
+        MenuBarExtra {
             MenuContent()
+        } label: {
+            Image("MenuBarIcon")
         }
         Settings {
             SettingsView()
