@@ -51,6 +51,9 @@ final class OverlaySession: NSObject {
             editor.onCopy = { [weak self, weak editor] in
                 if let editor { self?.copy(from: editor) }
             }
+            editor.onSave = { [weak self, weak editor] in
+                if let editor { self?.save(from: editor) }
+            }
             editor.onClose = { [weak self] in self?.end() }
 
             let panel = OverlayPanel(screen: shot.screen)
@@ -95,6 +98,17 @@ final class OverlaySession: NSObject {
         panels.forEach { $0.orderOut(nil) }
         Exporter.copy(image, pointSize: editor.selection?.size ?? .zero)
         end()
+    }
+
+    private func save(from editor: EditorView) {
+        guard let image = editor.renderSelection(), let panel = editor.window else { return }
+        if Exporter.save(image, pointSize: editor.selection?.size ?? .zero, above: panel.level) {
+            end()
+        } else if !ended {
+            // Cancel: quay lại editor, giữ nguyên nét vẽ.
+            panel.makeKeyAndOrderFront(nil)
+            panel.makeFirstResponder(editor)
+        }
     }
 
     @objc private func screensChanged() {

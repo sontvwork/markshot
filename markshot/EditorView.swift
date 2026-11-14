@@ -12,6 +12,8 @@ final class EditorView: NSView {
     let image: CGImage
     /// Số pixel ảnh trên mỗi point canvas.
     let pixelScale: CGFloat
+    /// Số pixel ảnh xuất ra trên mỗi point canvas: 1 khi bật Downscale Retina.
+    private let outputScale: CGFloat
     let canvasSize: CGSize
     private let inset: CGFloat
 
@@ -95,6 +97,7 @@ final class EditorView: NSView {
     init(image: CGImage, pixelScale: CGFloat, canvasSize: CGSize, inset: CGFloat = 0) {
         self.image = image
         self.pixelScale = pixelScale
+        self.outputScale = Prefs.downscaleRetina ? 1 : pixelScale
         self.canvasSize = canvasSize
         self.inset = inset
         super.init(frame: CGRect(x: 0, y: 0, width: canvasSize.width + 2 * inset, height: canvasSize.height + 2 * inset))
@@ -149,9 +152,7 @@ final class EditorView: NSView {
         }
         addSubview(toolBar)
 
-        // M3 mới có Save.
         actionBar.addButton(symbol: "square.and.arrow.down", tooltip: "Save (⌘S)") { [weak self] in self?.requestSave() }
-            .isEnabled = false
         actionBar.addButton(symbol: "doc.on.doc", tooltip: "Copy (⌘C)") { [weak self] in self?.requestCopy() }
         actionBar.addButton(symbol: "xmark", tooltip: "Đóng (Esc)") { [weak self] in self?.onClose() }
         addSubview(actionBar)
@@ -181,7 +182,7 @@ final class EditorView: NSView {
         commitText()
         guard let selection else { return nil }
         return Exporter.render(
-            image: image, pixelScale: pixelScale, selection: selection, annotations: annotations
+            image: image, pixelScale: pixelScale, outputScale: outputScale, selection: selection, annotations: annotations
         ) { [self] in pixelImage(for: $0) }
     }
 
@@ -259,8 +260,8 @@ final class EditorView: NSView {
             view.isHidden = creating
         }
 
-        let width = Int((selection.width * pixelScale).rounded())
-        let height = Int((selection.height * pixelScale).rounded())
+        let width = Int((selection.width * outputScale).rounded())
+        let height = Int((selection.height * outputScale).rounded())
         sizeLabel.stringValue = "\(width) × \(height)"
         sizeLabel.sizeToFit()
         sizeLabel.setFrameOrigin(CGPoint(x: 6, y: 3))
@@ -401,10 +402,10 @@ final class EditorView: NSView {
         panel.color = color
         panel.setTarget(self)
         panel.setAction(#selector(colorPanelChanged(_:)))
-        // Bảng màu phải nổi trên overlay và hiện được ở cả space full màn hình.
+        // Bảng màu phải nổi trên overlay và hiện được ở mọi desktop, kể cả space full màn hình.
         panel.hidesOnDeactivate = false
         panel.level = NSWindow.Level(rawValue: max(NSWindow.Level.floating.rawValue, (window?.level.rawValue ?? 0) + 1))
-        panel.collectionBehavior.insert(.fullScreenAuxiliary)
+        panel.joinAllSpaces()
         panel.orderFront(nil)
     }
 
@@ -476,9 +477,9 @@ final class EditorView: NSView {
         }
     }
 
-    /// Làm tròn các cạnh theo lưới pixel của ảnh để ảnh xuất ra không lệch pixel.
+    /// Làm tròn các cạnh theo lưới pixel của ảnh xuất ra để ảnh không lệch pixel.
     private func snapped(_ rect: CGRect) -> CGRect {
-        func snap(_ value: CGFloat) -> CGFloat { (value * pixelScale).rounded() / pixelScale }
+        func snap(_ value: CGFloat) -> CGFloat { (value * outputScale).rounded() / outputScale }
         let x0 = snap(rect.minX), y0 = snap(rect.minY)
         return CGRect(x: x0, y: y0, width: snap(rect.maxX) - x0, height: snap(rect.maxY) - y0)
     }

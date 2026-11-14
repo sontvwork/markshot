@@ -53,6 +53,9 @@ final class CaptureCoordinator {
             """
         alert.addButton(withTitle: "Mở System Settings")
         alert.addButton(withTitle: "Để sau")
+        // Thông báo phải hiện ở desktop đang dùng, kể cả khi đang ở app full màn hình.
+        alert.window.level = .modalPanel
+        alert.window.joinAllSpaces()
         NSApp.activate()
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         // Đăng ký markshot vào danh sách Screen Recording (lần đầu macOS sẽ hỏi).
