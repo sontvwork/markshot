@@ -106,6 +106,7 @@ final class OverlaySession: NSObject {
         guard !ended else { return }
         ended = true
         NotificationCenter.default.removeObserver(self)
+        EditorView.dismissColorPanel()
         for panel in panels {
             panel.orderOut(nil)
             panel.contentView = nil

@@ -1,8 +1,14 @@
 import AppKit
 
 enum Exporter {
-    /// Cắt vùng chọn (toạ độ point của canvas) ra khỏi ảnh gốc.
-    static func render(image: CGImage, pixelScale: CGFloat, selection: CGRect) -> CGImage? {
+    /// Ảnh xuất ra: vùng chọn (toạ độ point của canvas) cắt từ ảnh gốc, đã gộp nét vẽ.
+    static func render(
+        image: CGImage,
+        pixelScale: CGFloat,
+        selection: CGRect,
+        annotations: [Annotation],
+        pixelated: (Annotation) -> CGImage?
+    ) -> CGImage? {
         let pixelRect = CGRect(
             x: (selection.minX * pixelScale).rounded(),
             y: (selection.minY * pixelScale).rounded(),
@@ -10,7 +16,34 @@ enum Exporter {
             height: (selection.height * pixelScale).rounded()
         ).intersection(CGRect(x: 0, y: 0, width: image.width, height: image.height))
         guard !pixelRect.isEmpty else { return nil }
-        return image.cropping(to: pixelRect)
+        // Không có nét vẽ: cắt thẳng từ ảnh gốc, không phải vẽ lại.
+        if annotations.isEmpty {
+            return image.cropping(to: pixelRect)
+        }
+
+        let width = Int(pixelRect.width), height = Int(pixelRect.height)
+        let opaque = [.none, .noneSkipFirst, .noneSkipLast].contains(image.alphaInfo)
+        guard let ctx = CGContext.bitmap(width: width, height: height, matching: image, opaque: opaque) else { return nil }
+
+        // Đưa context về toạ độ canvas: gốc trên-trái, đơn vị point.
+        ctx.translateBy(x: 0, y: CGFloat(height))
+        ctx.scaleBy(x: pixelScale, y: -pixelScale)
+        ctx.translateBy(x: -pixelRect.minX / pixelScale, y: -pixelRect.minY / pixelScale)
+
+        ctx.interpolationQuality = .none
+        ctx.drawUpright(image, in: CGRect(
+            x: 0, y: 0, width: CGFloat(image.width) / pixelScale, height: CGFloat(image.height) / pixelScale
+        ))
+        ctx.interpolationQuality = .default
+
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: true)
+        ctx.clip(to: selection)
+        for annotation in annotations {
+            annotation.draw(in: ctx, pixelated: pixelated)
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        return ctx.makeImage()
     }
 
     /// Đưa ảnh vào clipboard. `pointSize` ghi vào metadata để ảnh Retina dán ra đúng kích thước.

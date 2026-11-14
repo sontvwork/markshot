@@ -28,7 +28,14 @@ final class BarView: NSView {
 
     @discardableResult
     func addButton(symbol: String, tooltip: String, action: @escaping () -> Void) -> BarButton {
-        let button = BarButton(symbol: symbol, tooltip: tooltip, handler: action)
+        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: tooltip)?
+            .withSymbolConfiguration(.init(pointSize: 14, weight: .medium))
+        return addButton(image: image, tooltip: tooltip, action: action)
+    }
+
+    @discardableResult
+    func addButton(image: NSImage?, tooltip: String, action: @escaping () -> Void) -> BarButton {
+        let button = BarButton(image: image, tooltip: tooltip, handler: action)
         let offset = Self.padding + CGFloat(subviews.count) * (Self.buttonSize + Self.spacing)
         button.frame = CGRect(
             x: vertical ? Self.padding : offset,
@@ -48,16 +55,22 @@ final class BarView: NSView {
 final class BarButton: NSButton {
     private let handler: () -> Void
 
-    init(symbol: String, tooltip: String, handler: @escaping () -> Void) {
+    /// Công cụ đang được chọn thì có nền sáng.
+    var isSelected = false {
+        didSet { layer?.backgroundColor = isSelected ? NSColor(white: 1, alpha: 0.28).cgColor : nil }
+    }
+
+    init(image: NSImage?, tooltip: String, handler: @escaping () -> Void) {
         self.handler = handler
         super.init(frame: .zero)
-        image = NSImage(systemSymbolName: symbol, accessibilityDescription: tooltip)?
-            .withSymbolConfiguration(.init(pointSize: 14, weight: .medium))
+        self.image = image
         imagePosition = .imageOnly
         isBordered = false
         contentTintColor = .white
         toolTip = tooltip
         refusesFirstResponder = true
+        wantsLayer = true
+        layer?.cornerRadius = 6
         target = self
         action = #selector(fire)
     }
@@ -69,6 +82,35 @@ final class BarButton: NSButton {
 
     @objc private func fire() {
         handler()
+    }
+}
+
+extension NSImage {
+    private static let iconSize = NSSize(width: 16, height: 16)
+
+    /// Chấm tròn mang màu vẽ hiện tại, dùng cho nút chọn màu.
+    static func swatch(_ color: NSColor) -> NSImage {
+        NSImage(size: iconSize, flipped: false) { rect in
+            let path = NSBezierPath(ovalIn: rect.insetBy(dx: 1.5, dy: 1.5))
+            color.setFill()
+            path.fill()
+            NSColor.white.setStroke()
+            path.lineWidth = 1.5
+            path.stroke()
+            return true
+        }
+    }
+
+    /// Chấm trắng to nhỏ theo độ dày nét, dùng cho nút S/M/L.
+    static func strokeDot(_ size: StrokeSize) -> NSImage {
+        let diameter = 4 + CGFloat(size.rawValue) * 4.5
+        return NSImage(size: iconSize, flipped: false) { rect in
+            NSColor.white.setFill()
+            NSBezierPath(ovalIn: CGRect(
+                x: rect.midX - diameter / 2, y: rect.midY - diameter / 2, width: diameter, height: diameter
+            )).fill()
+            return true
+        }
     }
 }
 
@@ -113,9 +155,19 @@ enum BarLayout {
             width: actionSize.width,
             height: actionSize.height
         )
-        // Hai thanh cùng nằm trong vùng chọn: đẩy thanh hành động sang trái thanh công cụ.
-        if let tool, action.intersects(tool) {
-            action.origin.x = max(b.minX + gap, tool.minX - gap - actionSize.width)
+        // Hai thanh đè nhau (cùng nằm trong vùng chọn, hoặc bị dồn vào mép màn hình): tách ra.
+        if var moved = tool, action.intersects(moved) {
+            let actionLeft = moved.minX - gap - actionSize.width
+            let toolRight = action.maxX + gap
+            if actionLeft >= b.minX + gap {
+                action.origin.x = actionLeft
+            } else if toolRight + moved.width <= b.maxX - gap {
+                moved.origin.x = toolRight
+                tool = moved
+            } else {
+                let below = moved.maxY + gap
+                action.origin.y = below + actionSize.height <= b.maxY ? below : moved.minY - gap - actionSize.height
+            }
         }
         return (tool, action)
     }
