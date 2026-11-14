@@ -22,13 +22,10 @@ private struct MenuContent: View {
     var body: some View {
         Button("Chụp vùng chọn") { CaptureCoordinator.shared.start(.region) }
             .globalKeyboardShortcut(.captureRegion)
-        // M4
-        Button("Chụp toàn màn hình") {}
+        Button("Chụp toàn màn hình") { CaptureCoordinator.shared.start(.screen) }
             .globalKeyboardShortcut(.captureScreen)
-            .disabled(true)
-        Button("Chụp nhiều màn hình") {}
+        Button("Chụp nhiều màn hình") { CaptureCoordinator.shared.start(.allScreens) }
             .globalKeyboardShortcut(.captureAllScreens)
-            .disabled(true)
         Divider()
         Button("Preferences…") {
             openSettings()
@@ -46,6 +43,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         KeyboardShortcuts.onKeyDown(for: .captureRegion) {
             CaptureCoordinator.shared.start(.region)
         }
+        KeyboardShortcuts.onKeyDown(for: .captureScreen) {
+            CaptureCoordinator.shared.start(.screen)
+        }
+        KeyboardShortcuts.onKeyDown(for: .captureAllScreens) {
+            CaptureCoordinator.shared.start(.allScreens)
+        }
+
+        // Lấy sẵn danh sách màn hình để lần chụp đầu hiện overlay nhanh; lấy lại khi cắm/rút màn hình.
+        ScreenCapturer.warmUp()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(screensChanged),
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
 
         // "Tự chạy khi đăng nhập" mặc định bật: đăng ký một lần ở lần chạy đầu tiên.
         let defaults = UserDefaults.standard
@@ -53,5 +65,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             defaults.set(true, forKey: Prefs.Key.didSetupLoginItem)
             try? SMAppService.mainApp.register()
         }
+    }
+
+    @objc private func screensChanged() {
+        ScreenCapturer.invalidate()
     }
 }

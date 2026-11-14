@@ -13,4 +13,17 @@ extension NSWindow {
         behavior.insert([.canJoinAllSpaces, .fullScreenAuxiliary])
         collectionBehavior = behavior
     }
+
+    /// Hiện cửa sổ nổi trên các cửa sổ thường, ngay tại desktop đang dùng.
+    ///
+    /// Không trông vào việc macOS có chịu kích hoạt app hay không: app chạy nền không có icon Dock
+    /// hay bị từ chối, khi đó cửa sổ thường sẽ mở ra phía sau app đang dùng.
+    func presentOnTop() {
+        level = .floating
+        joinAllSpaces()
+        orderFrontRegardless()
+        makeKey()
+        // Kích hoạt sau khi cửa sổ đã nằm ở desktop này, để macOS không có lý do chuyển desktop.
+        NSApp.activate(ignoringOtherApps: true)
+    }
 }

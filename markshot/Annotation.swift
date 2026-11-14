@@ -59,7 +59,7 @@ struct Annotation {
         case line(from: CGPoint, to: CGPoint, arrow: Bool)
         case rectangle(CGRect)
         case pixelate(CGRect)
-        case counter(center: CGPoint, number: Int)
+        case counter(center: CGPoint, number: Int, radius: CGFloat)
         case text(origin: CGPoint, string: String, fontSize: CGFloat)
     }
 
@@ -72,7 +72,8 @@ struct Annotation {
     private static let markerScale: CGFloat = 4
     private static let markerAlpha: CGFloat = 0.4
 
-    private var counterRadius: CGFloat { 6 + lineWidth * 2 }
+    /// Bán kính hình tròn đánh số theo mức S/M/L.
+    static func counterRadius(for size: StrokeSize) -> CGFloat { 6 + size.lineWidth * 2 }
 
     /// Bề rộng nét thực tế: Marker to gấp nhiều lần nét thường.
     var strokeWidth: CGFloat {
@@ -118,7 +119,7 @@ struct Annotation {
             return rect.insetBy(dx: -lineWidth, dy: -lineWidth)
         case .pixelate(let rect):
             return rect
-        case .counter(let center, _):
+        case .counter(let center, _, let counterRadius):
             let radius = counterRadius + 1
             return CGRect(x: center.x - radius, y: center.y - radius, width: 2 * radius, height: 2 * radius)
         case .text:
@@ -211,8 +212,7 @@ struct Annotation {
             ctx.interpolationQuality = .none
             ctx.drawUpright(image, in: rect)
 
-        case .counter(let center, let number):
-            let radius = counterRadius
+        case .counter(let center, let number, let radius):
             ctx.fillEllipse(in: CGRect(x: center.x - radius, y: center.y - radius, width: 2 * radius, height: 2 * radius))
             let label = NSAttributedString(string: "\(number)", attributes: [
                 .font: NSFont.systemFont(ofSize: radius * 1.15, weight: .bold),
@@ -244,10 +244,18 @@ enum Pixelator {
 
         let width = max(1, Int((rect.width / block).rounded(.up)))
         let height = max(1, Int((rect.height / block).rounded(.up)))
-        guard let ctx = CGContext.bitmap(width: width, height: height, matching: base, opaque: true) else { return nil }
+        // Giữ kênh alpha của ảnh gốc: vùng trống trong suốt của ảnh ghép không được biến thành đen.
+        guard let ctx = CGContext.bitmap(width: width, height: height, matching: base, opaque: base.isOpaque) else { return nil }
         ctx.interpolationQuality = .medium
         ctx.draw(cropped, in: CGRect(x: 0, y: 0, width: width, height: height))
         return ctx.makeImage()
+    }
+}
+
+extension CGImage {
+    /// Ảnh không có kênh alpha (ảnh chụp một màn hình). Ảnh ghép nhiều màn hình thì có vùng trong suốt.
+    var isOpaque: Bool {
+        [.none, .noneSkipFirst, .noneSkipLast].contains(alphaInfo)
     }
 }
 

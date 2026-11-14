@@ -107,6 +107,7 @@ final class EditorView: NSView {
         imageView.layerContentsRedrawPolicy = .never
         imageView.layer?.contents = image
         imageView.layer?.contentsGravity = .resize
+        imageView.layer?.minificationFilter = .trilinear
         addSubview(imageView)
 
         for view in dimViews {
@@ -177,6 +178,11 @@ final class EditorView: NSView {
         selection = nil
     }
 
+    /// Chọn sẵn toàn bộ ảnh (chụp toàn màn hình, chụp nhiều màn hình).
+    func selectAll() {
+        selection = CGRect(origin: .zero, size: canvasSize)
+    }
+
     /// Ảnh xuất ra: vùng chọn cắt từ ảnh gốc, đã gộp nét vẽ.
     func renderSelection() -> CGImage? {
         commitText()
@@ -184,6 +190,18 @@ final class EditorView: NSView {
         return Exporter.render(
             image: image, pixelScale: pixelScale, outputScale: outputScale, selection: selection, annotations: annotations
         ) { [self] in pixelImage(for: $0) }
+    }
+
+    /// Dọn editor khi phiên kết thúc: bỏ ô nhập text đang gõ dở và nhả ảnh đã chụp.
+    func tearDown() {
+        if let textView = editingText?.view {
+            editingText = nil
+            textView.delegate = nil
+            window?.makeFirstResponder(nil)
+            textView.removeFromSuperview()
+        }
+        imageView.layer?.contents = nil
+        pixelCache.removeAll()
     }
 
     /// Gỡ bảng màu của hệ thống khỏi editor đang đóng.
@@ -522,19 +540,23 @@ final class EditorView: NSView {
     }
 
     private func beginDrawing(_ tool: Tool, at p: CGPoint) {
+        // Độ dày, cỡ chữ, cỡ hình tròn chọn theo point trên màn hình. Khi ảnh đang thu nhỏ (cửa sổ ảnh ghép),
+        // quy đổi ra point của canvas để nét vẽ trông giống nhau ở mọi mức thu phóng.
+        let unit = 1 / zoom
         func make(_ shape: Annotation.Shape) -> Annotation {
-            Annotation(id: nextID, shape: shape, color: color, lineWidth: strokeSize.lineWidth)
+            Annotation(id: nextID, shape: shape, color: color, lineWidth: strokeSize.lineWidth * unit)
         }
         switch tool {
         case .text:
-            beginEditingText(id: nil, at: p, string: "", fontSize: Annotation.defaultFontSize, color: color)
+            beginEditingText(id: nil, at: p, string: "", fontSize: (Annotation.defaultFontSize * unit).rounded(), color: color)
             return
         case .counter:
             let numbers = annotations.compactMap { annotation -> Int? in
-                if case .counter(_, let number) = annotation.shape { return number }
+                if case .counter(_, let number, _) = annotation.shape { return number }
                 return nil
             }
-            commit(make(.counter(center: p, number: (numbers.max() ?? 0) + 1)))
+            let radius = Annotation.counterRadius(for: strokeSize) * unit
+            commit(make(.counter(center: p, number: (numbers.max() ?? 0) + 1, radius: radius)))
             return
         case .pen: inProgress = make(.stroke(points: [p], marker: false))
         case .marker: inProgress = make(.stroke(points: [p], marker: true))
@@ -694,6 +716,7 @@ final class EditorView: NSView {
         case ("s", false): requestSave()
         case ("z", false): undo()
         case ("z", true): redo()
+        case ("w", false): onClose()
         default: break
         }
         return true

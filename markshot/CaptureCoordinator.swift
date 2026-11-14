@@ -2,14 +2,19 @@ import AppKit
 import os
 
 enum CaptureMode {
-    case region, screen, allScreens
+    /// Chọn vùng trên overlay phủ tất cả màn hình.
+    case region
+    /// Màn hình đang có con trỏ, chọn sẵn cả màn hình.
+    case screen
+    /// Ghép tất cả màn hình thành một ảnh, mở trong cửa sổ riêng.
+    case allScreens
 }
 
 /// Điểm vào của mọi lần chụp. Mỗi lúc chỉ giữ một phiên chụp.
 final class CaptureCoordinator {
     static let shared = CaptureCoordinator()
 
-    private var session: OverlaySession?
+    private var session: CaptureSession?
     private var busy = false
 
     func start(_ mode: CaptureMode) {
@@ -21,16 +26,35 @@ final class CaptureCoordinator {
             return
         }
 
+        // Xác định màn hình cần chụp ngay lúc bấm hotkey, trước khi con trỏ kịp di chuyển.
+        let screens = mode == .screen ? [NSScreen.underMouse].compactMap { $0 } : NSScreen.screens
         let started = ContinuousClock.now
+        let warm = ScreenCapturer.isWarm
         Task {
             defer { busy = false }
             do {
-                let shots = try await ScreenCapturer.capture(NSScreen.screens)
+                let shots = try await ScreenCapturer.capture(screens)
                 guard !shots.isEmpty else { return }
-                session = OverlaySession(shots: shots) { self.session = nil }
+                let captured = ContinuousClock.now
+                let onEnd = { self.session = nil }
+                switch mode {
+                case .region:
+                    session = CaptureSession(overlay: shots, selectAll: false, onEnd: onEnd)
+                case .screen:
+                    session = CaptureSession(overlay: shots, selectAll: true, onEnd: onEnd)
+                case .allScreens:
+                    guard let stitched = ScreenCapturer.stitch(shots) else {
+                        NSSound.beep()
+                        return
+                    }
+                    session = CaptureSession(stitched: stitched, onEnd: onEnd)
+                }
                 #if DEBUG
-                Logger(subsystem: "com.son.markshot", category: "timing")
-                    .notice("overlay hiện sau \(started.duration(to: .now).formatted(.units(allowed: [.milliseconds])))")
+                let total = Self.milliseconds(started.duration(to: .now))
+                let capture = Self.milliseconds(started.duration(to: captured))
+                Logger(subsystem: "com.son.markshot", category: "timing").notice(
+                    "editor hiện sau \(total, privacy: .public) ms (chụp \(capture, privacy: .public) ms, \(shots.count, privacy: .public) màn hình, danh sách màn hình \(warm ? "có sẵn" : "lấy mới", privacy: .public))"
+                )
                 #endif
             } catch {
                 NSLog("markshot: chụp màn hình lỗi: %@", String(describing: error))
@@ -43,6 +67,11 @@ final class CaptureCoordinator {
         }
     }
 
+    private static func milliseconds(_ duration: Duration) -> Int {
+        let components = duration.components
+        return Int((Double(components.seconds) * 1000 + Double(components.attoseconds) / 1e15).rounded())
+    }
+
     private func showPermissionAlert() {
         let alert = NSAlert()
         alert.messageText = "markshot cần quyền Screen Recording"
@@ -53,7 +82,7 @@ final class CaptureCoordinator {
             """
         alert.addButton(withTitle: "Mở System Settings")
         alert.addButton(withTitle: "Để sau")
-        // Thông báo phải hiện ở desktop đang dùng, kể cả khi đang ở app full màn hình.
+        // Thông báo phải hiện được ở mọi desktop, kể cả khi đang ở app full màn hình.
         alert.window.level = .modalPanel
         alert.window.joinAllSpaces()
         NSApp.activate()

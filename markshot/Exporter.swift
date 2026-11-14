@@ -28,8 +28,7 @@ enum Exporter {
 
         let width = max(1, Int((selection.width * outputScale).rounded()))
         let height = max(1, Int((selection.height * outputScale).rounded()))
-        let opaque = [.none, .noneSkipFirst, .noneSkipLast].contains(image.alphaInfo)
-        guard let ctx = CGContext.bitmap(width: width, height: height, matching: image, opaque: opaque) else { return nil }
+        guard let ctx = CGContext.bitmap(width: width, height: height, matching: image, opaque: image.isOpaque) else { return nil }
 
         // Đưa context về toạ độ canvas: gốc trên-trái, đơn vị point.
         ctx.translateBy(x: 0, y: CGFloat(height))
@@ -78,8 +77,12 @@ enum Exporter {
     }
 
     /// Hỏi nơi lưu bằng hộp thoại của hệ thống rồi ghi file theo format trong Preferences.
-    /// Trả về `false` nếu người dùng bấm Cancel hoặc ghi lỗi (khi đó editor vẫn mở).
-    static func save(_ image: CGImage, pointSize: CGSize, above level: NSWindow.Level) -> Bool {
+    ///
+    /// Hộp thoại được gắn vào `window` dưới dạng sheet. Không dùng `runModal()`: khi chạy modal, AppKit ép
+    /// hộp thoại về mức `modalPanel`, thấp hơn overlay, nên nó bị overlay che mất trong khi app đứng chờ nó.
+    ///
+    /// - Parameter completion: `true` khi đã lưu xong; `false` nếu bấm Cancel hoặc ghi lỗi (editor vẫn mở).
+    static func save(_ image: CGImage, pointSize: CGSize, on window: NSWindow, completion: @escaping (Bool) -> Void) {
         let format = Prefs.imageFormat
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -90,29 +93,34 @@ enum Exporter {
         panel.nameFieldStringValue = "markshot_\(formatter.string(from: Date())).\(format.rawValue)"
         panel.allowedContentTypes = [format.contentType]
         panel.canCreateDirectories = true
-        // Hộp thoại phải nổi trên overlay và hiện được ở mọi desktop, kể cả space full màn hình.
-        panel.level = NSWindow.Level(rawValue: max(NSWindow.Level.modalPanel.rawValue, level.rawValue + 1))
-        panel.joinAllSpaces()
-        NSApp.activate()
-        guard panel.runModal() == .OK, let url = panel.url else { return false }
-
-        do {
-            try autoreleasepool {
-                let rep = bitmap(image, pointSize: pointSize)
-                // JPG không có kênh alpha: vùng trong suốt được NSBitmapImageRep tô trắng.
-                let data = format == .png
-                    ? rep.representation(using: .png, properties: [:])
-                    : rep.representation(using: .jpeg, properties: [.compressionFactor: Prefs.jpgQuality])
-                guard let data else { throw CocoaError(.fileWriteUnknown) }
-                try data.write(to: url, options: .atomic)
+        // Kích hoạt app để gõ được tên file ngay.
+        NSApp.activate(ignoringOtherApps: true)
+        panel.beginSheetModal(for: window) { response in
+            guard response == .OK, let url = panel.url else {
+                completion(false)
+                return
             }
-            return true
-        } catch {
-            let alert = NSAlert(error: error)
-            alert.window.level = panel.level
-            alert.window.joinAllSpaces()
-            alert.runModal()
-            return false
+            do {
+                try write(image, pointSize: pointSize, to: url, format: format)
+                completion(true)
+            } catch {
+                NSAlert(error: error).beginSheetModal(for: window) { _ in
+                    completion(false)
+                }
+            }
+        }
+    }
+
+    /// Ghi ảnh ra file theo format đã chọn. JPG dùng chất lượng trong Preferences.
+    static func write(_ image: CGImage, pointSize: CGSize, to url: URL, format: ImageFormat) throws {
+        try autoreleasepool {
+            let rep = bitmap(image, pointSize: pointSize)
+            // JPG không có kênh alpha: vùng trong suốt được NSBitmapImageRep tô trắng.
+            let data = format == .png
+                ? rep.representation(using: .png, properties: [:])
+                : rep.representation(using: .jpeg, properties: [.compressionFactor: Prefs.jpgQuality])
+            guard let data else { throw CocoaError(.fileWriteUnknown) }
+            try data.write(to: url, options: .atomic)
         }
     }
 }

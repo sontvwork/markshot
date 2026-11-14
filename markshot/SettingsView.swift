@@ -102,25 +102,15 @@ enum SettingsWindow {
         // Chờ sang lượt chạy kế tiếp: menu đã đóng hẳn và SwiftUI đã tạo xong cửa sổ.
         Task {
             guard let window = current else { return }
-            // Nổi trên các cửa sổ thường và có mặt ở mọi desktop: không phụ thuộc việc macOS có chịu
-            // kích hoạt app hay không, và hiện được cả trong space của app full màn hình.
-            window.level = .floating
-            window.joinAllSpaces()
-
             // Mở ở màn hình đang có con trỏ (nơi vừa bấm menu), không phải màn hình lần trước.
-            let mouse = NSEvent.mouseLocation
-            if let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) }), window.screen != screen {
+            if let screen = NSScreen.underMouse, window.screen != screen {
                 let visible = screen.visibleFrame
                 window.setFrameOrigin(NSPoint(
                     x: (visible.midX - window.frame.width / 2).rounded(),
                     y: (visible.midY - window.frame.height / 2).rounded()
                 ))
             }
-
-            window.orderFrontRegardless()
-            window.makeKey()
-            // Kích hoạt sau khi cửa sổ đã nằm ở desktop này, để macOS không có lý do chuyển desktop.
-            NSApp.activate(ignoringOtherApps: true)
+            window.presentOnTop()
         }
     }
 }
